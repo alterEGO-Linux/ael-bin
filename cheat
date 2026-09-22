@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# =============================================================================
+# INFO
+# =============================================================================
+# [/ael-bin/cheat]
+# 
+# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
+# Created     : 2023-08-01 19:57:57 UTC
+# Updated     : 2026-09-22 16:40:35 UTC
+# Description : Provides an interactive interface to `https://cheat.sh` using `ael-fuzz`.
+# -----------------------------------------------------------------------------
+
+cheat() {
+
+    source ${HOME}/.ael/lib/bash/ael
+    import applications messages
+
+    # --- (ref) <https://github.com/chubin/cheat.sh>
+
+    check_applications ael-fuzz curl less || return 1
+
+    local -a _fuzz_args=()
+    local _CHEAT
+
+    trap 'unset -f usage; trap - RETURN' RETURN
+
+    # --- (usage) -------------------------------------------------------------
+
+    usage() {
+        cat <<EOF
+================================================================================
+[+] cheat - Provides an interactive interface to `https://cheat.sh` using `ael-fuzz`.
+================================================================================
+Usage:
+  cheat [--desktop|--usage|--help]
+
+Options:
+  --desktop         GUI interface.
+  -h, --help        Show this help message and exit.
+      --usage
+
+For full documentation, see:
+  github.com/alterEGO-Linux/ael-documentation/components/ael-bin/INDEX.md.
+-------------------------------------------------------------------------------
+EOF
+    }
+
+    # --- (argumments) --------------------------------------------------------
+
+    while (( $# )); do
+        case "$1" in
+            --desktop)
+                _fuzz_args+=(--frontend quickshell)
+                ;;
+            -h|--help|--usage)
+                usage
+                return 0
+                ;;
+            *) message error "cheat: unknown option."
+                return 2
+                ;;
+        esac
+
+        shift
+    done
+
+    # --- (select cheat sheet) ------------------------------------------------
+
+    _CHEAT="$(
+        command curl -fsSL cheat.sh/:list |
+            ael-fuzz \
+                --input plain \
+                --preview 'curl -fsSL cheat.sh/{}?T' \
+                --preview-window right:80% \
+                "${_fuzz_args[@]}"
+    )" || return $?
+
+    [[ -n ${_CHEAT} ]] || return 0
+
+    # --- (display cheat sheet) -----------------------------------------------
+                     
+    command curl -fsSL "cheat.sh/${_CHEAT}" | command less -R
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    cheat "$@"
+fi

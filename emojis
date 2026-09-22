@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# =============================================================================
+# INFO
+# =============================================================================
+# [/ael-bin/emojis]
+# 
+# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
+# Created     : 2022-06-02 08:56:47 UTC
+# Updated     : 2026-09-22 15:33:20 UTC
+# Description : Search emojis.
+# -----------------------------------------------------------------------------
+
+source "${HOME}/.ael/lib/bash/ael" 2>/dev/null || {
+    printf '%s\n' "[!] AEL//bashlib required."
+    printf '%s\n' "    See documentation https://github.com/alterEGO-Linux/ael-documentation"
+    exit 1
+}
+import applications messages
+
+check_applications ael-fuzz || exit 0
+
+_DATA="${AEL_DATA}/emojis.json"
+
+if [[ ! -f "$_DATA" ]]; then
+    message error "Cannot find data file $_DATA"
+    exit 1
+fi    
+
+_SELECTION=$(
+    ael-fuzz \
+        --input json \
+        --file "$_DATA" \
+        --value-field emoji \
+        --display-fields emoji,name,codepoints
+)
+
+if [[ -z "${_SELECTION}" ]]; then
+    exit 0
+fi
+
+if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+    check_applications wl-copy || exit 0
+    printf '%s' "$_SELECTION" | wl-copy
+else
+    check_applications xclip || exit 0
+    printf '%s' "$_SELECTION" | xclip -selection clipboard
+fi
+
+message result "emojis - Selected emoji:"
+printf '%s\n' "${_SELECTION}"

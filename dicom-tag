@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# =============================================================================
+# INFO
+# =============================================================================
+# [/ael-bin/dicom-tag]
+# 
+# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
+# Created     : 2021-07-14 09:38:38 UTC
+# Updated     : 2026-09-01 20:38:23 UTC
+# Description : Search DICOM tags.
+# -----------------------------------------------------------------------------
+
+source ${HOME}/.ael/lib/bash/ael
+import applications messages
+
+check_applications ael-fuzz || exit 1
+
+if [[ ! -f "${AEL_DATA}/dicom-tags.json" ]]; then
+    message error "Cannot find data file ${AEL_DATA}/dicom-tags.json."
+fi    
+
+ael-fuzz \
+    --input json \
+    --file "${AEL_DATA}/dicom-tags.json" \
+    --value-field tag \
+    --display-fields tag,keyword \
+    --output display  
