@@ -1,0 +1,119 @@
+# =============================================================================
+# INFO
+# =============================================================================
+# [/ael-bin/network-switch]
+# 
+# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
+# Created     : 2026-04-21 19:22:00 UTC
+# Updated     : 2026-09-26 14:52:01 UTC
+# Description : Enable or disable network connectivity.
+# -----------------------------------------------------------------------------
+
+set -o pipefail
+
+# ===( BASHLIB )===============================================================
+
+if [[ -z "${AEL_BASHLIB:-}" ]]; then
+    printf 'network-switch: AEL_BASHLIB is not set\n' >&2
+    exit 1
+fi
+
+# shellcheck source=/dev/null
+source "$AEL_BASHLIB"
+
+import messages applications
+
+check_applications cat systemctl NetworkManager || exit 1
+
+# ===( USAGE )=================================================================
+
+usage() {
+    cat <<EOF
+===============================================================================
+[+] network-switch - Enable or disable network connectivity.
+===============================================================================
+Usage:
+  network-switch <--on|--off> | [-h|--help]
+
+Controls network connectivity using NetworkManager.
+
+Options:
+  --on          - Start NetworkManager and enable network connectivity.
+  --off         - Stop NetworkManager and disable network connectivity.
+  -h, --help    - Display this help message.
+
+Examples:
+  network-switch --on
+  network-switch --off
+
+This application is part of alterEGO Linux ecosystem.
+
+Full AEL//Documentation:
+  <https://github.com/alterEGO-Linux/ael-documentation>
+-------------------------------------------------------------------------------
+EOF
+}
+
+# ===( NOTIFY )================================================================
+
+notify_network() {
+    local message="$1"
+
+    if command -v ael-notify >/dev/null 2>&1; then
+        ael-notify notify "$message" >/dev/null
+    elif command -v notify-send >/dev/null 2>&1; then
+        notify-send -t 1500 "$message"
+    fi
+}
+
+# ===( NETWORK )===============================================================
+
+network_off() {
+    if sudo systemctl stop NetworkManager; then
+        notify_network "Internet OFF"
+    else
+        message error "Failed to stop NetworkManager."
+        return 1
+    fi
+}
+
+network_on() {
+    if systemctl is-active --quiet NetworkManager; then
+        notify_network "Internet ON"
+        return 0
+    fi
+
+    if sudo systemctl start NetworkManager; then
+        notify_network "Internet ON"
+    else
+        message error "Failed to start NetworkManager."
+        return 1
+    fi
+}
+
+# ===( MAIN )==================================================================
+
+case "${1:-}" in
+    --on)
+        network_on
+        ;;
+
+    --off)
+        network_off
+        ;;
+
+    -h | --help)
+        usage
+        ;;
+
+    "")
+        usage
+        exit 1
+        ;;
+
+    *)
+        message error "Unknown option: $1"
+        usage
+        exit 1
+        ;;
+esac
