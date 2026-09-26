@@ -1,0 +1,422 @@
+#!/usr/bin/env bash
+# =============================================================================
+# INFO
+# =============================================================================
+# [/ael-bin/ps-grep]
+# 
+# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
+# Created     : 2023-08-02 00:56:31 UTC
+# Updated     : 2026-09-26 13:28:46 UTC
+# Description : Search and inspect running processes.
+# -----------------------------------------------------------------------------
+
+ps-grep() {
+
+    source "${AEL_BASHLIB}"
+    import applications messages
+
+    check_applications ps grep awk sort || return 1
+
+    local _mode="summary"
+    local _pattern=""
+    local _sort=""
+    local _verbose=0
+    local _total=0
+
+    # ===( FUNCTIONS )=========================================================
+
+    # ---( usage )-------------------------------------------------------------
+
+    usage() {
+        cat <<EOF
+===============================================================================
+[+] ps-grep - Search and inspect running processes.
+===============================================================================
+
+Usage:
+  ps-grep [options] <pattern>
+
+Display:
+  --summary          Compact process table (default).
+  --stack            Show each process as a vertical record.
+  --full             Show full ps output.
+
+Options:
+  --sort=RSS         Sort by resident memory, highest first.
+  --sort=CPU         Sort by CPU usage, highest first.
+  --sort=MEM         Sort by memory usage, highest first.
+  --sort=PID         Sort by PID, lowest first.
+  --verbose          Show additional information in summary mode.
+  --total            Show process count and total RSS.
+  --help, -h         Show this help.
+
+Examples:
+  ps-grep zen
+  ps-grep zen --sort=RSS
+  ps-grep zen --sort=CPU --total
+  ps-grep zen --verbose
+  ps-grep zen --sort=RSS --verbose --total
+  ps-grep zen --stack --sort=RSS --total
+  ps-grep zen --full
+-------------------------------------------------------------------------------
+EOF
+    }
+
+    # ---( human readable memory )---------------------------------------------
+
+    human_memory() {
+        local _kb="$1"
+
+        awk -v kb="$_kb" '
+            BEGIN {
+                if (kb >= 1048576)
+                    printf "%.1f GiB", kb / 1048576
+                else if (kb >= 1024)
+                    printf "%.1f MiB", kb / 1024
+                else
+                    printf "%d KiB", kb
+            }
+        '
+    }
+
+    # ---( total )-------------------------------------------------------------
+
+    display_total() {
+
+        local _count=0
+        local _rss_total=0
+
+        while IFS='|' read -r \
+            _user _pid _ppid _cpu _mem _rss _start _time _comm _args
+        do
+            ((_count++))
+            ((_rss_total += _rss))
+        done <<< "$_matches"
+
+        local _rss_human
+        _rss_human=$(human_memory "$_rss_total")
+
+        printf '\n'
+        printf '%s\n' "------------------------------------------------------------"
+        printf '%d process%s · %s RSS\n' \
+            "$_count" \
+            "$([ "$_count" -eq 1 ] && printf '' || printf 'es')" \
+            "$_rss_human"
+    }
+
+    # ===( ARGUMENTS )=========================================================
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+
+            --summary)
+                _mode="summary"
+                ;;
+
+            --stack)
+                _mode="stack"
+                ;;
+
+            --full)
+                _mode="full"
+                ;;
+
+            --sort=*)
+                _sort="${1#*=}"
+                _sort="${_sort^^}"
+
+                case "$_sort" in
+                    RSS|CPU|MEM|PID)
+                        ;;
+                    *)
+                        message error "Invalid sort field: ${1#*=}"
+                        return 1
+                        ;;
+                esac
+                ;;
+
+            --verbose|-v)
+                _verbose=1
+                ;;
+
+            --total)
+                _total=1
+                ;;
+
+            --help|-h)
+                usage
+                return 0
+                ;;
+
+            --*)
+                message error "Unknown option: $1"
+                return 1
+                ;;
+
+            *)
+                if [ -n "$_pattern" ]; then
+                    message error "Only one pattern may be specified."
+                    return 1
+                fi
+
+                _pattern="$1"
+                ;;
+        esac
+
+        shift
+    done
+
+    # ===( VALIDATE )==========================================================
+
+    if [ -z "$_pattern" ]; then
+        message error "No pattern provided."
+        return 1
+    fi
+
+    # --- Prevent grep from matching itself.
+    local _grep_pattern
+    _grep_pattern="[${_pattern:0:1}]${_pattern:1}"
+
+    # ===( PROCESS SNAPSHOT )==================================================
+
+    # --- Use | as an internal field separator.
+    # 
+    #  Fields:
+    # 
+    #   USER | PID | PPID | CPU | MEM | RSS | START | TIME | COMMAND | ARGS
+    # 
+    #   ps is called once so all display modes operate on the same snapshot.
+    # -------------------------------------------------------------------------
+
+    local _matches
+
+    _matches=$(
+        ps -eo \
+            user=,pid=,ppid=,pcpu=,pmem=,rss=,start=,time=,comm=,args= |
+        awk '
+            {
+                user=$1
+                pid=$2
+                ppid=$3
+                cpu=$4
+                mem=$5
+                rss=$6
+                start=$7
+                time=$8
+                comm=$9
+
+                args=""
+                for (i=10; i<=NF; i++) {
+                    if (args != "")
+                        args=args " "
+                    args=args $i
+                }
+
+                printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
+                    user, pid, ppid, cpu, mem, rss,
+                    start, time, comm, args
+            }
+        ' |
+        grep -Ei -- "$_grep_pattern" |
+        grep -Ev 'ps-grep|grep -E'
+    )
+
+    if [ -z "$_matches" ]; then
+        message error "No matching process found."
+        return 1
+    fi
+
+    # ===( SORT )==============================================================
+
+    case "$_sort" in
+
+        RSS)
+            _matches=$(
+                printf '%s\n' "$_matches" |
+                    sort -t'|' -k6,6nr
+            )
+            ;;
+
+        CPU)
+            _matches=$(
+                printf '%s\n' "$_matches" |
+                    sort -t'|' -k4,4nr
+            )
+            ;;
+
+        MEM)
+            _matches=$(
+                printf '%s\n' "$_matches" |
+                    sort -t'|' -k5,5nr
+            )
+            ;;
+
+        PID)
+            _matches=$(
+                printf '%s\n' "$_matches" |
+                    sort -t'|' -k2,2n
+            )
+            ;;
+
+    esac
+
+    # ===( SUMMARY )===========================================================
+
+    if [ "$_mode" = "summary" ]; then
+
+        printf '%-12s %8s %6s %6s %10s  %s\n' \
+            "USER" "PID" "%CPU" "%MEM" "RSS" "COMMAND"
+
+        printf '%-12s %8s %6s %6s %10s  %s\n' \
+            "------------" \
+            "--------" \
+            "------" \
+            "------" \
+            "----------" \
+            "-------"
+
+        while IFS='|' read -r \
+            _user _pid _ppid _cpu _mem _rss _start _time _comm _args
+        do
+
+            local _rss_human
+            _rss_human=$(human_memory "$_rss")
+
+            printf '%-12s %8s %6s %6s %10s  %s\n' \
+                "$_user" \
+                "$_pid" \
+                "$_cpu" \
+                "$_mem" \
+                "$_rss_human" \
+                "$_comm"
+
+            # --verbose adds details without making the table itself
+            # excessively wide.
+            if [ "$_verbose" -eq 1 ]; then
+
+                printf '  %-8s %s\n' "PPID" "$_ppid"
+                printf '  %-8s %s\n' "START" "$_start"
+                printf '  %-8s %s\n' "TIME" "$_time"
+                printf '  %-8s %s\n' "ARGS" "$_args"
+                printf '\n'
+
+            fi
+
+        done <<< "$_matches"
+
+        [ "$_total" -eq 1 ] && display_total
+
+        return 0
+    fi
+
+    # ===( STACK )=============================================================
+
+    if [ "$_mode" = "stack" ]; then
+
+        local _first=1
+
+        while IFS='|' read -r \
+            _user _pid _ppid _cpu _mem _rss _start _time _comm _args
+        do
+
+            local _rss_human
+            _rss_human=$(human_memory "$_rss")
+
+            [ "$_first" -eq 0 ] && printf '\n'
+            _first=0
+
+            printf '%-9s %s\n'   "USER"    "$_user"
+            printf '%-9s %s\n'   "PID"     "$_pid"
+            printf '%-9s %s\n'   "PPID"    "$_ppid"
+            printf '%-9s %s%%\n' "CPU"     "$_cpu"
+            printf '%-9s %s%%\n' "MEM"     "$_mem"
+            printf '%-9s %s\n'   "RSS"     "$_rss_human"
+            printf '%-9s %s\n'   "START"   "$_start"
+            printf '%-9s %s\n'   "TIME"    "$_time"
+            printf '%-9s %s\n'   "COMMAND" "$_comm"
+
+            if [ "$_verbose" -eq 1 ]; then
+                printf '%-9s %s\n' "ARGS" "$_args"
+            fi
+
+        done <<< "$_matches"
+
+        [ "$_total" -eq 1 ] && display_total
+
+        return 0
+    fi
+
+    # ===( FULL )==============================================================
+
+    if [ "$_mode" = "full" ]; then
+
+        local _full_matches
+        local _ps_sort=""
+
+        # Apply the requested sorting directly to ps for --full.
+        case "$_sort" in
+            RSS)
+                _ps_sort="--sort=-rss"
+                ;;
+            CPU)
+                _ps_sort="--sort=-pcpu"
+                ;;
+            MEM)
+                _ps_sort="--sort=-pmem"
+                ;;
+            PID)
+                _ps_sort="--sort=pid"
+                ;;
+        esac
+
+        _full_matches=$(
+            ps aux $_ps_sort |
+                grep -Ei -- "$_grep_pattern" |
+                grep -Ev 'ps-grep|grep -E'
+        )
+
+        local _header
+        _header=$(ps aux | head -n 1)
+
+        printf '%s\n' "$_header"
+
+        # Preserve the original highlighting behaviour.
+        local _width
+        local _need_spacing=0
+        local _line
+
+        _width=$(tput cols)
+
+        while IFS= read -r _line; do
+            if [ "${#_line}" -ge "$_width" ]; then
+                _need_spacing=1
+                break
+            fi
+        done <<< "$_full_matches"
+
+        while IFS= read -r _line; do
+
+            local _highlighted
+
+            _highlighted=$(
+                printf '%s\n' "$_line" |
+                    GREP_COLORS='mt=43;30' \
+                    grep --color=always -Ei -- "$_grep_pattern|$"
+            )
+
+            printf '%s\n' "$_highlighted"
+
+            [ "$_need_spacing" -eq 1 ] && printf '\n'
+
+        done <<< "$_full_matches"
+
+        # Total is calculated from our original process snapshot.
+        [ "$_total" -eq 1 ] && display_total
+
+        return 0
+    fi
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    ps-grep "$@"
+fi
