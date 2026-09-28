@@ -12,9 +12,38 @@
 
 delete() {
 
-    source ${HOME}/.ael/lib/bash/ael
-    import applications
-    import messages
+    # --( AEL-BASHLIB )--------------------------------------------------------
+    
+    if [[ -z "${AEL_BASHLIB:-}" ]]; then
+        printf '%s\n' \
+            'Warning: $AEL_BASHLIB is not set.' \
+            '' \
+            'The recommended location is:' \
+            '  ~/.local/share/ael/ael-bashlib' \
+            '' \
+            'Set it with:' \
+            '  export AEL_BASHLIB="$HOME/.local/share/ael/ael-bashlib"' \
+            ''
+    fi
+
+    bashlib_dir="${AEL_BASHLIB:-$HOME/.local/share/ael/ael-bashlib}"
+
+    if [[ ! -d "$bashlib_dir" ]]; then
+        printf '%s\n' \
+            'Error: AEL//BashLib is required but could not be found.' \
+            '' \
+            'Expected location:' \
+            "  $bashlib_dir" \
+            '' \
+            'Installation instructions:' \
+            '  https://github.com/alterEGO-Linux/ael-documentation/components/ael-bashlib/INDEX.md' \
+            '' >&2
+
+        exit 1
+    fi
+
+    source ${AEL_BASHLIB}/ael
+    import applications messages
     
     if [ "$#" -eq 0 ]; then
         message error "Usage: delete <dir1> [dir2] [dir3] ..."

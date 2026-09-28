@@ -6,13 +6,43 @@
 # 
 # Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
 # Created     : 2023-08-02 00:56:31 UTC
-# Updated     : 2026-09-26 13:28:46 UTC
+# Updated     : 2026-09-28 18:41:13 UTC
 # Description : Search and inspect running processes.
 # -----------------------------------------------------------------------------
 
 ps-grep() {
 
-    source "${AEL_BASHLIB}"
+    # ---( AEL-BASHLIB )-------------------------------------------------------
+    
+    if [[ -z "${AEL_BASHLIB:-}" ]]; then
+        printf '%s\n' \
+            'Warning: $AEL_BASHLIB is not set.' \
+            '' \
+            'The recommended location is:' \
+            '  ~/.local/share/ael/ael-bashlib' \
+            '' \
+            'Set it with:' \
+            '  export AEL_BASHLIB="$HOME/.local/share/ael/ael-bashlib"' \
+            ''
+    fi
+
+    bashlib_dir="${AEL_BASHLIB:-$HOME/.local/share/ael/ael-bashlib}"
+
+    if [[ ! -d "$bashlib_dir" ]]; then
+        printf '%s\n' \
+            'Error: AEL//BashLib is required but could not be found.' \
+            '' \
+            'Expected location:' \
+            "  $bashlib_dir" \
+            '' \
+            'Installation instructions:' \
+            '  https://github.com/alterEGO-Linux/ael-documentation/components/ael-bashlib/INDEX.md' \
+            '' >&2
+
+        exit 1
+    fi
+
+    source ${AEL_BASHLIB}/ael
     import applications messages
 
     check_applications ps grep awk sort || return 1
