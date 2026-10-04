@@ -37,6 +37,7 @@ Components:
   --docker-info     Uninstall docker-info
   --elevate         Uninstall elevate
   --emojis          Uninstall emojis
+  --extractor       Uninstall extractor
   --network-switch  Uninstall network-switch
   --pacman-reset    Uninstall pacman-reset
   --ports           Uninstall ports
@@ -195,6 +196,11 @@ uninstall_emojis() {
     remove_script "emojis"
 }
 
+uninstall_extractor() {
+    printf '\nUninstalling extractor...\n'
+
+    remove_script "extractor"
+}
 
 uninstall_network_switch() {
     printf '\nUninstalling network-switch...\n'
@@ -285,6 +291,7 @@ uninstall_all() {
     uninstall_docker_info
     uninstall_elevate
     uninstall_emojis
+    uninstall_extractor
     uninstall_network_switch
     uninstall_pacman_reset
     uninstall_ports
@@ -356,6 +363,10 @@ while [[ $# -gt 0 ]]; do
 
         --emojis)
             components+=(emojis)
+            ;;
+
+        --extractor)
+            components+=(extractor)
             ;;
 
         --network-switch)
@@ -488,6 +499,10 @@ for component in "${components[@]}"; do
 
         emojis)
             uninstall_emojis
+            ;;
+
+        extractor)
+            uninstall_extractor
             ;;
 
         network-switch)

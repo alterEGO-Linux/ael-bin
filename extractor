@@ -1,0 +1,410 @@
+# =============================================================================
+# INFO
+# =============================================================================
+# [/ael-bin/extractor]
+# 
+# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
+# Assisted by : ChatGPT (OpenAI)
+# Created     : 2023-08-01 19:55:12 UTC
+# Updated     : 2026-10-02 20:02:33 UTC
+# Description : Compressed files universal extractor.
+# -----------------------------------------------------------------------------
+
+set -eu
+
+# ---( ael-bashlib )----------------------------------------------------------|
+
+if [[ -z "${AEL_BASHLIB:-}" ]]; then
+    printf '%s\n' \
+        'Warning: $AEL_BASHLIB is not set.' \
+        '' \
+        'The recommended location is:' \
+        '  ~/.local/share/ael/ael-bashlib' \
+        '' \
+        'Set it with:' \
+        '  export AEL_BASHLIB="$HOME/.local/share/ael/ael-bashlib"' \
+        ''
+fi
+
+bashlib_dir="${AEL_BASHLIB:-$HOME/.local/share/ael/ael-bashlib}"
+
+if [[ ! -d "$bashlib_dir" ]]; then
+    printf '%s\n' \
+        'Error: AEL//BashLib is required but could not be found.' \
+        '' \
+        'Expected location:' \
+        "  $bashlib_dir" \
+        '' \
+        'Installation instructions:' \
+        '  https://github.com/alterEGO-Linux/ael-documentation/components/ael-bashlib/INDEX.md' \
+        '' >&2
+
+    exit 1
+fi
+
+source ${AEL_BASHLIB}/ael
+import applications messages
+
+
+check_applications bash cat || exit 1
+
+# ---( help )-----------------------------------------------------------------|
+
+usage() {
+    cat <<EOF
+===============================================================================
+[+] extractor - Compressed files universal extractor.
+===============================================================================
+Usage:
+  extractor <file1> [file2 ... fileN]
+
+This script extracts compressed files based on their extension.
+
+Supported formats:
+
+  --- ( Tar archives )
+  *.tar        - Extracts an uncompressed tar archive.
+  *.tar.gz     - Extracts a gzip-compressed tar archive.
+  *.tgz        - Alias for *.tar.gz.
+  *.tar.bz2    - Extracts a bzip2-compressed tar archive.
+  *.tbz2       - Alias for *.tar.bz2.
+  *.tar.xz     - Extracts an xz-compressed tar archive.
+  *.txz        - Alias for *.tar.xz.
+  *.tar.zst    - Extracts a zstd-compressed tar archive.
+  *.tzst       - Alias for *.tar.zst.
+
+  --- ( Single-file compression )
+  *.gz         - Decompresses a gzip-compressed file.
+  *.bz2        - Decompresses a bzip2-compressed file.
+  *.xz         - Decompresses an xz-compressed file.
+  *.lzma       - Decompresses an lzma-compressed file.
+  *.Z          - Decompresses a legacy UNIX compress file.
+
+  --- ( Other archive formats )
+  *.zip        - Extracts a ZIP archive.
+  *.rar        - Extracts a RAR archive.
+  *.7z         - Extracts a 7z archive.
+  *.iso        - Extracts files from an ISO image.
+  *.cpio       - Extracts a cpio archive.
+
+Notes:
+- Multi-file archives are normally extracted into a directory named after
+  the archive, without its extension.
+- If the archive already contains a matching top-level directory, that
+  directory is used instead of creating an additional directory.
+- Single-file compression formats (*.gz, *.bz2, *.xz, *.lzma, *.Z)
+  decompress directly in place.
+- ISO images are extracted using 7z (no mounting required).
+
+-------------------------------------------------------------------------------
+EOF
+}
+
+# ---( functions )------------------------------------------------------------|
+
+# --- Return the filename without its archive extension.
+# Examples:
+#   foo.tar.gz  -> foo
+#   foo.tgz     -> foo
+#   foo.zip     -> foo
+#   foo.7z      -> foo
+#
+archive_basename() {
+    local filename
+
+    filename="$(basename "$1")"
+
+    case "$filename" in
+        *.tar.gz)  printf '%s\n' "${filename%.tar.gz}" ;;
+        *.tar.bz2) printf '%s\n' "${filename%.tar.bz2}" ;;
+        *.tar.xz)  printf '%s\n' "${filename%.tar.xz}" ;;
+        *.tar.zst) printf '%s\n' "${filename%.tar.zst}" ;;
+        *.tgz)     printf '%s\n' "${filename%.tgz}" ;;
+        *.tbz2)    printf '%s\n' "${filename%.tbz2}" ;;
+        *.txz)     printf '%s\n' "${filename%.txz}" ;;
+        *.tzst)    printf '%s\n' "${filename%.tzst}" ;;
+        *.tar)     printf '%s\n' "${filename%.tar}" ;;
+        *.zip)     printf '%s\n' "${filename%.zip}" ;;
+        *.rar)     printf '%s\n' "${filename%.rar}" ;;
+        *.7z)      printf '%s\n' "${filename%.7z}" ;;
+        *.iso)     printf '%s\n' "${filename%.iso}" ;;
+        *.cpio)    printf '%s\n' "${filename%.cpio}" ;;
+        *)         printf '%s\n' "${filename%.*}" ;;
+    esac
+}
+
+# --- Determine where an archive should be extracted.
+#
+# If:
+#
+#   foo.tar.gz
+#
+# contains:
+#
+#   foo/
+#   foo/file1
+#   foo/file2
+#
+# return the archive's parent directory.
+#
+# Otherwise return:
+#
+#   <parent>/foo
+#
+extraction_directory() {
+    local file="$1"
+    local archive_name
+    local parent
+    local top_levels
+
+    archive_name="$(archive_basename "$file")"
+    parent="$(dirname "$file")"
+
+    case "$file" in
+
+        *.tar|*.tar.gz|*.tgz|*.tar.bz2|*.tbz2|*.tar.xz|*.txz|*.tar.zst|*.tzst)
+            top_levels="$(
+                tar tf "$file" |
+                    sed 's#^\./##' |
+                    awk -F/ 'NF && $1 != "" {print $1}' |
+                    sort -u
+            )"
+            ;;
+
+        *.zip)
+            top_levels="$(
+                unzip -Z1 "$file" |
+                    sed 's#^\./##' |
+                    awk -F/ 'NF && $1 != "" {print $1}' |
+                    sort -u
+            )"
+            ;;
+
+        *.rar)
+            top_levels="$(
+                unrar lb "$file" |
+                    sed 's#^\./##' |
+                    awk -F/ 'NF && $1 != "" {print $1}' |
+                    sort -u
+            )"
+            ;;
+
+        *.7z|*.iso)
+            top_levels="$(
+                7z l -slt "$file" |
+                    sed -n 's/^Path = //p' |
+                    tail -n +2 |
+                    sed 's#^\./##' |
+                    awk -F/ 'NF && $1 != "" {print $1}' |
+                    sort -u
+            )"
+            ;;
+
+        *)
+            printf '%s/%s\n' "$parent" "$archive_name"
+            return
+            ;;
+    esac
+
+    # If there is exactly one top-level entry and its name matches the
+    # archive name, the archive already contains its own directory.
+    if [[ "$top_levels" == "$archive_name" ]]; then
+        printf '%s\n' "$parent"
+    else
+        printf '%s/%s\n' "$parent" "$archive_name"
+    fi
+}
+
+# ---( options )--------------------------------------------------------------|
+
+# --- Show help if no arguments.
+if [[ "${#}" -eq 0 ]]; then
+    usage
+    exit 0
+fi
+
+# --- Show help and ignore other arguments.
+for arg in "${@}"; do
+    if [[ "${arg}" == "-h" || "${arg}" == "--help" ]]; then
+        usage
+        exit 0
+    fi
+done
+
+# ---( extraction )-----------------------------------------------------------|
+
+for file in "${@}"; do
+
+    if [[ ! -f "$file" ]]; then
+        message error "extractor - ${file} is not a valid file."
+        continue
+    fi
+
+    case "$file" in
+
+        # --- tar archives
+
+        *.tar.gz|*.tgz)
+            check_applications tar || exit 1
+
+            directory="$(extraction_directory "$file")"
+
+            mkdir -p "$directory"
+            tar xzf "$file" -C "$directory"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.tar.bz2|*.tbz2)
+            check_applications tar || exit 1
+
+            directory="$(extraction_directory "$file")"
+
+            mkdir -p "$directory"
+            tar xjf "$file" -C "$directory"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.tar.xz|*.txz)
+            check_applications tar || exit 1
+
+            directory="$(extraction_directory "$file")"
+
+            mkdir -p "$directory"
+            tar xJf "$file" -C "$directory"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.tar.zst|*.tzst)
+            check_applications tar || exit 1
+
+            directory="$(extraction_directory "$file")"
+
+            mkdir -p "$directory"
+            tar --zstd -xf "$file" -C "$directory"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.tar)
+            check_applications tar || exit 1
+
+            directory="$(extraction_directory "$file")"
+
+            mkdir -p "$directory"
+            tar xf "$file" -C "$directory"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        # --- single-file compression
+
+        *.gz)
+            check_applications gunzip || exit 1
+
+            gunzip "$file"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.bz2)
+            check_applications bunzip2 || exit 1
+
+            bunzip2 "$file"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.xz)
+            check_applications unxz || exit 1
+
+            unxz "$file"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.lzma)
+            check_applications unlzma || exit 1
+
+            unlzma "$file"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.Z)
+            check_applications uncompress || exit 1
+
+            uncompress "$file"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        # --- other archive formats
+
+        *.zip)
+            check_applications unzip || exit 1
+
+            directory="$(extraction_directory "$file")"
+
+            mkdir -p "$directory"
+            unzip "$file" -d "$directory"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.rar)
+            check_applications unrar || exit 1
+
+            directory="$(extraction_directory "$file")"
+
+            mkdir -p "$directory"
+            unrar x "$file" "${directory}/"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.7z)
+            check_applications 7z || exit 1
+
+            directory="$(extraction_directory "$file")"
+
+            mkdir -p "$directory"
+            7z x "$file" -o"$directory"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.iso)
+            check_applications 7z || exit 1
+
+            directory="$(extraction_directory "$file")"
+
+            mkdir -p "$directory"
+            7z x "$file" -o"$directory"
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        *.cpio)
+            check_applications cpio || exit 1
+
+            directory="$(dirname "$file")/$(archive_basename "$file")"
+
+            mkdir -p "$directory"
+            (
+                cd "$directory"
+                cpio -id < "$file"
+            )
+
+            message success "extractor - ${file} extracted"
+            ;;
+
+        # --- fallback
+
+        *)
+            message error "extractor - unknown archive method."
+            ;;
+    esac
+done

@@ -6,8 +6,8 @@
 # 
 # Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
 # Created     : 2026-09-28 13:14:51 UTC
-# Updated     : 2026-09-28 13:14:51 UTC
-# Description : AEL//Bin install.
+# Updated     : 2026-10-04 15:38:45 UTC
+# Description : AEL//bin install.
 # -----------------------------------------------------------------------------
 
 set -euo pipefail
@@ -69,6 +69,7 @@ Components:
   --docker-info     Install docker-info
   --elevate         Install elevate
   --emojis          Install emojis
+  --extractor       Install extractor
   --network-switch  Install network-switch
   --pacman-reset    Install pacman-reset
   --ports           Install ports
@@ -242,6 +243,12 @@ install_emojis() {
     install_script "emojis"
 }
 
+install_extractor() {
+    printf '\nInstalling extractor...\n'
+
+    install_script "extractor"
+}
+
 install_network_switch() {
     printf '\nInstalling network-switch...\n'
 
@@ -320,6 +327,7 @@ install_all() {
     install_docker_info
     install_elevate
     install_emojis
+    install_extractor
     install_network_switch
     install_pacman_reset
     install_ports
@@ -390,6 +398,10 @@ while [[ $# -gt 0 ]]; do
 
         --emojis)
             components+=(emojis)
+            ;;
+
+        --extractor)
+            components+=(extractor)
             ;;
 
         --network-switch)
@@ -526,6 +538,10 @@ for component in "${components[@]}"; do
 
         emojis)
             install_emojis
+            ;;
+
+        extractor)
+            install_extractor
             ;;
 
         network-switch)
