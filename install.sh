@@ -6,7 +6,7 @@
 # 
 # Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
 # Created     : 2026-09-28 13:14:51 UTC
-# Updated     : 2026-10-04 15:38:45 UTC
+# Updated     : 2026-10-04 16:22:14 UTC
 # Description : AEL//bin install.
 # -----------------------------------------------------------------------------
 
@@ -76,6 +76,7 @@ Components:
   --processes       Install processes
   --ps-grep         Install ps-grep
   --py-cleaner      Install py-cleaner
+  --py-server       Install py-server
   --shell-info      Install shell-info
   --show-utc        Install show-utc
   --virtual-boxes   Install virtual-boxes
@@ -285,6 +286,12 @@ install_py_cleaner() {
     install_script "py-cleaner"
 }
 
+install_py_server() {
+    printf '\nInstalling py-server...\n'
+
+    install_script "py-server"
+}
+
 install_shell_info() {
     printf '\nInstalling shell-info...\n'
 
@@ -334,6 +341,7 @@ install_all() {
     install_processes
     install_ps_grep
     install_py_cleaner
+    install_py_server
     install_shell_info
     install_show_utc
     install_virtual_boxes
@@ -426,6 +434,10 @@ while [[ $# -gt 0 ]]; do
 
         --py-cleaner)
             components+=(py-cleaner)
+            ;;
+
+        --py-server)
+            components+=(py-server)
             ;;
 
         --shell-info)
@@ -566,6 +578,10 @@ for component in "${components[@]}"; do
 
         py-cleaner)
             install_py_cleaner
+            ;;
+
+        py-server)
+            install_py_server
             ;;
 
         shell-info)

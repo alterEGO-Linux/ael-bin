@@ -14,7 +14,7 @@ busy() {
     # (ref) <https://www.commandlinefu.com/commands/view/6663/pretend-to-be-busy-in-office-to-enjoy-a-cup-of-coffee>
     # Ctrl+C to quit.
 
-    # --( AEL-BASHLIB )--------------------------------------------------------
+    # --( ael-bashlib )-------------------------------------------------------|
     
     if [[ -z "${AEL_BASHLIB:-}" ]]; then
         printf '%s\n' \

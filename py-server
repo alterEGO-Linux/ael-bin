@@ -1,0 +1,84 @@
+# =============================================================================
+# INFO
+# =============================================================================
+# [/ael-bin/py-server]
+# 
+# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
+# Assisted by : ChatGPT (OpenAI)
+# Created     : 2024-09-10 16:58:34 UTC
+# Updated     : 2026-10-04 15:57:30 UTC
+# Description : Create a Python HTTP server.
+# -----------------------------------------------------------------------------
+
+py-server() {
+
+    # --- This script find an available port and starts a python HTTP server.
+
+    local _ports=(
+        '8000'
+        '8001'
+        '8002'
+        '8003'
+        '8004'
+        '8005'
+        '8006'
+        '8007'
+        '8008'
+        '8009'
+        '8010'
+    )
+
+    # ---( ael-bashlib )------------------------------------------------------|
+    
+    if [[ -z "${AEL_BASHLIB:-}" ]]; then
+        printf '%s\n' \
+            'Warning: $AEL_BASHLIB is not set.' \
+            '' \
+            'The recommended location is:' \
+            '  ~/.local/share/ael/ael-bashlib' \
+            '' \
+            'Set it with:' \
+            '  export AEL_BASHLIB="$HOME/.local/share/ael/ael-bashlib"' \
+            ''
+    fi
+
+    local bashlib_dir="${AEL_BASHLIB:-$HOME/.local/share/ael/ael-bashlib}"
+
+    if [[ ! -d "$bashlib_dir" ]]; then
+        printf '%s\n' \
+            'Error: AEL//BashLib is required but could not be found.' \
+            '' \
+            'Expected location:' \
+            "  $bashlib_dir" \
+            '' \
+            'Installation instructions:' \
+            '  https://github.com/alterEGO-Linux/ael-documentation/components/ael-bashlib/INDEX.md' \
+            '' >&2
+
+        return 1
+    fi
+
+    source ${bashlib_dir}/ael
+    import applications messages
+
+    check_applications netstat grep python || return 1
+
+    local _continue=true
+    while ${_continue}; do
+      local p
+      for p in "${_ports[@]}"; do
+        if [[ -z $(sudo netstat -tulanp | command grep ":${p}") ]]; then
+          local _port="${p}"
+          _continue=false
+          break
+        fi
+      done
+    done
+
+    message success "py-server: Starting HTTP server on port ${_port}"
+    command python -m http.server ${_port}
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    py-server
+fi

@@ -6,7 +6,7 @@
 #
 # Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
 # Created     : 2026-09-28 19:38:06 UTC
-# Updated     : 2026-09-28 19:38:11 UTC
+# Updated     : 2026-10-04 16:22:02 UTC
 # Description : AEL//Bin uninstall.
 # -----------------------------------------------------------------------------
 
@@ -44,6 +44,7 @@ Components:
   --processes       Uninstall processes
   --ps-grep         Uninstall ps-grep
   --py-cleaner      Uninstall py-cleaner
+  --py-server       Uninstall py-server
   --shell-info      Uninstall shell-info
   --show-utc        Uninstall show-utc
   --virtual-boxes   Uninstall virtual-boxes
@@ -243,6 +244,11 @@ uninstall_py_cleaner() {
     remove_script "py-cleaner"
 }
 
+uninstall_py_server() {
+    printf '\nUninstalling py-server...\n'
+
+    remove_script "py-server"
+}
 
 uninstall_shell_info() {
     printf '\nUninstalling shell-info...\n'
@@ -298,6 +304,7 @@ uninstall_all() {
     uninstall_processes
     uninstall_ps_grep
     uninstall_py_cleaner
+    uninstall_py_server
     uninstall_shell_info
     uninstall_show_utc
     uninstall_virtual_boxes
@@ -391,6 +398,10 @@ while [[ $# -gt 0 ]]; do
 
         --py-cleaner)
             components+=(py-cleaner)
+            ;;
+
+        --py-server)
+            components+=(py-server)
             ;;
 
         --shell-info)
@@ -527,6 +538,10 @@ for component in "${components[@]}"; do
 
         py-cleaner)
             uninstall_py_cleaner
+            ;;
+
+        py-server)
+            uninstall_py_server
             ;;
 
         shell-info)
