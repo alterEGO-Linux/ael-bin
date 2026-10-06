@@ -6,7 +6,7 @@
 # 
 # Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
 # Created     : 2026-09-28 13:14:51 UTC
-# Updated     : 2026-10-04 16:22:14 UTC
+# Updated     : 2026-10-05 19:08:17 UTC
 # Description : AEL//bin install.
 # -----------------------------------------------------------------------------
 
@@ -77,6 +77,7 @@ Components:
   --ps-grep         Install ps-grep
   --py-cleaner      Install py-cleaner
   --py-server       Install py-server
+  --reverse-ssh     Install reverse-ssh
   --shell-info      Install shell-info
   --show-utc        Install show-utc
   --virtual-boxes   Install virtual-boxes
@@ -292,6 +293,12 @@ install_py_server() {
     install_script "py-server"
 }
 
+install_reverse_ssh() {
+    printf '\nInstalling reverse-ssh...\n'
+
+    install_script "reverse-ssh"
+}
+
 install_shell_info() {
     printf '\nInstalling shell-info...\n'
 
@@ -342,6 +349,7 @@ install_all() {
     install_ps_grep
     install_py_cleaner
     install_py_server
+    install_reverse_ssh
     install_shell_info
     install_show_utc
     install_virtual_boxes
@@ -438,6 +446,10 @@ while [[ $# -gt 0 ]]; do
 
         --py-server)
             components+=(py-server)
+            ;;
+
+        --reverse-ssh)
+            components+=(reverse-ssh)
             ;;
 
         --shell-info)
@@ -582,6 +594,10 @@ for component in "${components[@]}"; do
 
         py-server)
             install_py_server
+            ;;
+
+        reverse-ssh)
+            install_reverse_ssh
             ;;
 
         shell-info)

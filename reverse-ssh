@@ -1,0 +1,218 @@
+# =============================================================================
+# INFO
+# =============================================================================
+# [/ael-bin/reverse-ssh]
+# 
+# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
+# Assisted by : ChatGPT (OpenAI)
+# Created     : 2022-01-10 16:23:27 UTC
+# Updated     : 2026-10-05 19:02:15 UTC
+# Description : Reverse SSH connections manager.
+# -----------------------------------------------------------------------------
+
+foreground_blue=$'\033[34m'
+foreground_red=$'\033[31m'
+reset_colors=$'\033[0m'
+
+check_applications() {
+    local app
+    for app in "$@"; do
+        if ! command -v "$app" >/dev/null 2>&1; then
+            printf '%s\n' "${foreground_red}[!]${reset_colors} ${app} is not installed."
+            return 1
+        fi
+    done
+}
+
+check_applications ssh ps || exit 1
+
+usage() {
+    cat <<'EOF_USAGE'
+===============================================================================
+[+] reverse-ssh - Set up and manage reverse SSH connections.
+===============================================================================
+Usage:
+  reverse-ssh <user@home_address:port>
+  reverse-ssh status
+  reverse-ssh kill <port>
+  reverse-ssh [-h|--help]
+
+Commands:
+  status         Show reverse SSH tunnels owned by the current user.
+  kill <port>    Stop the reverse SSH tunnel using <port>.
+
+Options:
+  -h, --help     Show this help.
+
+Example:
+  reverse-ssh neo@example.com:6666
+
+Then, on the home machine:
+  ssh -p 6666 localhost
+
+See 
+<https://github.com/alterEGO-Linux/ael-documentation/components/ael-bin/command/reverse-ssh.md> 
+for the full documentation.
+===============================================================================
+EOF_USAGE
+}
+
+# Print SSH processes owned by the current user that contain a reverse forward
+# of the form: -R <port>:localhost:22 or -R<port>:localhost:22
+reverse_ssh_processes() {
+    ps -u "${USER}" -o pid= -o ppid= -o args= 2>/dev/null |
+    while IFS= read -r line; do
+        [[ $line == *ssh* ]] || continue
+        [[ $line == *":localhost:22"* ]] || continue
+        [[ $line == *" -R "* || $line == *" -R"* ]] || continue
+        printf '%s\n' "$line"
+    done
+}
+
+find_tunnel_by_port() {
+    local wanted_port=$1 line args forward
+
+    while IFS= read -r line; do
+        args=${line#* * }
+
+        if [[ $args == *"-R ${wanted_port}:localhost:22"* || \
+              $args == *"-R${wanted_port}:localhost:22"* ]]; then
+            printf '%s\n' "$line"
+        fi
+    done < <(reverse_ssh_processes)
+}
+
+status_reverse_ssh() {
+    local found=0 line pid ppid args forward remote port host
+
+    printf '%s\n' "${foreground_blue}[+]${reset_colors} reverse-ssh - Existing reverse SSH connections:"
+
+    while IFS= read -r line; do
+        found=1
+        read -r pid ppid args <<< "$line"
+
+        forward=${args#*-R }
+        if [[ $forward == "$args" ]]; then
+            forward=${args#*-R}
+        fi
+        forward=${forward%% *}
+        port=${forward%%:*}
+
+        remote=${args%% -R*}
+        remote=${remote##* }
+        host=${remote#*@}
+
+        printf '    PID %-7s PORT %-6s HOST %s\n' "$pid" "$port" "$host"
+    done < <(reverse_ssh_processes)
+
+    if (( ! found )); then
+        printf '%s\n' "${foreground_blue}[-]${reset_colors} No reverse SSH connections found."
+    fi
+}
+
+kill_reverse_ssh() {
+    local wanted_port=$1 found=0 line pid ppid args parent_args
+
+    [[ $wanted_port =~ ^[0-9]+$ ]] || {
+        printf '%s\n' "${foreground_red}[!]${reset_colors} Invalid port: ${wanted_port}"
+        return 1
+    }
+
+    while IFS= read -r line; do
+        found=1
+        read -r pid ppid args <<< "$line"
+        printf '%s\n' "${foreground_blue}[-]${reset_colors} Stopping reverse SSH tunnel on port ${wanted_port} (PID ${pid})..."
+
+        # If this SSH process is managed by reverse-ssh, stop the wrapper first
+        # so it cannot immediately reconnect the tunnel. Old detached tunnels
+        # created with ssh -f have PPID 1 and are stopped directly.
+        parent_args=$(ps -p "$ppid" -o args= 2>/dev/null)
+        if [[ $parent_args == *reverse-ssh* ]]; then
+            kill "$ppid" 2>/dev/null
+        fi
+        kill "$pid" 2>/dev/null
+    done < <(find_tunnel_by_port "$wanted_port")
+
+    if (( ! found )); then
+        printf '%s\n' "${foreground_red}[!]${reset_colors} No reverse SSH tunnel found on port ${wanted_port}."
+        return 1
+    fi
+
+    printf '%s\n' "${foreground_blue}[+]${reset_colors} Reverse SSH tunnel on port ${wanted_port} stopped."
+}
+
+reverse_ssh() {
+    local existing attempt=0
+
+    existing=$(find_tunnel_by_port "$port")
+    if [[ -n $existing ]]; then
+        local pid ppid args
+        read -r pid ppid args <<< "$existing"
+        printf '%s\n' "${foreground_red}[!]${reset_colors} A reverse SSH tunnel using port ${port} is already running."
+        printf '%s\n' "${foreground_blue}[-]${reset_colors} PID: ${pid}"
+        printf '%s\n' "${foreground_blue}[-]${reset_colors} Use 'reverse-ssh status' to inspect existing tunnels."
+        return 1
+    fi
+
+    printf '%s\n' "${foreground_blue}[+]${reset_colors} reverse-ssh - Initiating reverse SSH connection..."
+    printf '%s\n' "${foreground_blue}[-]${reset_colors} Use ssh -p ${port} localhost at home..."
+
+    while true; do
+        if (( attempt > 0 )); then
+            printf '%s\n' "${foreground_blue}[-]${reset_colors} Reconnection attempt ${attempt}..."
+        fi
+
+        ssh "${user}@${home_address}" \
+            -R "${port}:localhost:22" \
+            -N \
+            -o ExitOnForwardFailure=yes \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=3 \
+            -o PermitLocalCommand=yes \
+            -o "LocalCommand=printf '${foreground_blue}[+]${reset_colors} Reverse SSH connection $([[ $attempt -gt 0 ]] && printf 're-' )established.\\n'"
+
+        ((attempt++))
+        printf '%s\n' "${foreground_red}[!]${reset_colors} SSH connection ended."
+        printf '%s\n' "${foreground_blue}[-]${reset_colors} Reconnecting in 10 seconds..."
+        sleep 10
+    done
+}
+
+case "${1:-}" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+    status)
+        status_reverse_ssh
+        ;;
+    kill)
+        if [[ -z ${2:-} || -n ${3:-} ]]; then
+            usage
+            exit 1
+        fi
+        kill_reverse_ssh "$2"
+        ;;
+    "")
+        usage
+        exit 1
+        ;;
+    *@*:*)
+        target=$1
+        user=${target%%@*}
+        host_port=${target#*@}
+        home_address=${host_port%:*}
+        port=${host_port##*:}
+
+        if [[ -z $user || -z $home_address || -z $port || $port == "$host_port" || ! $port =~ ^[0-9]+$ ]]; then
+            usage
+            exit 1
+        fi
+
+        reverse_ssh
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac

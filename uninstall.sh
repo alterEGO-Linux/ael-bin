@@ -6,7 +6,7 @@
 #
 # Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
 # Created     : 2026-09-28 19:38:06 UTC
-# Updated     : 2026-10-04 16:22:02 UTC
+# Updated     : 2026-10-05 19:14:21 UTC
 # Description : AEL//Bin uninstall.
 # -----------------------------------------------------------------------------
 
@@ -45,6 +45,7 @@ Components:
   --ps-grep         Uninstall ps-grep
   --py-cleaner      Uninstall py-cleaner
   --py-server       Uninstall py-server
+  --reverse-ssh     Uninstall reverse-ssh
   --shell-info      Uninstall shell-info
   --show-utc        Uninstall show-utc
   --virtual-boxes   Uninstall virtual-boxes
@@ -250,6 +251,12 @@ uninstall_py_server() {
     remove_script "py-server"
 }
 
+uninstall_reverse_ssh() {
+    printf '\nUninstalling reverse-ssh...\n'
+
+    remove_script "reverse-ssh"
+}
+
 uninstall_shell_info() {
     printf '\nUninstalling shell-info...\n'
 
@@ -305,6 +312,7 @@ uninstall_all() {
     uninstall_ps_grep
     uninstall_py_cleaner
     uninstall_py_server
+    uninstall_reverse_ssh
     uninstall_shell_info
     uninstall_show_utc
     uninstall_virtual_boxes
@@ -402,6 +410,10 @@ while [[ $# -gt 0 ]]; do
 
         --py-server)
             components+=(py-server)
+            ;;
+
+        --reverse-ssh)
+            components+=(reverse-ssh)
             ;;
 
         --shell-info)
@@ -542,6 +554,10 @@ for component in "${components[@]}"; do
 
         py-server)
             uninstall_py_server
+            ;;
+
+        reverse-ssh)
+            uninstall_reverse_ssh
             ;;
 
         shell-info)
