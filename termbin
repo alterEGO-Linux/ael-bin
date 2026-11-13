@@ -1,0 +1,232 @@
+#!/usr/bin/env bash
+
+# termbin - Send text to termbin.com from the terminal.
+# author  : Pascal Malouin (https://github.com/EGOUID0)
+# project : https://github.com/alterEGO-Linux/ael-bin
+# created : 2026-04-03
+
+termbin() {
+
+    # |---( ael-bashlib )-----------------------------------------------------|
+
+    if [[ -z "${AEL_BASHLIB:-}" ]]; then
+        printf '%s\n' \
+            'Warning: $AEL_BASHLIB is not set.' \
+            '' \
+            'The recommended location is:' \
+            '  ~/.local/share/ael/ael-bashlib' \
+            '' \
+            'Set it with:' \
+            '  export AEL_BASHLIB="$HOME/.local/share/ael/ael-bashlib"' \
+            ''
+    fi
+
+    local bashlib_dir="${AEL_BASHLIB:-$HOME/.local/share/ael/ael-bashlib}"
+
+    if [[ ! -d "$bashlib_dir" ]]; then
+        printf '%s\n' \
+            'Error: AEL//BashLib is required but could not be found.' \
+            '' \
+            'Expected location:' \
+            "  $bashlib_dir" \
+            '' \
+            'Installation instructions:' \
+            '  https://github.com/alterEGO-Linux/ael-documentation/blob/main/components/ael-bashlib/INDEX.md' \
+            '' >&2
+
+        return 1
+    fi
+
+    source "${bashlib_dir}/ael"
+    import applications messages
+
+    check_applications nc tr || return 1
+
+    # |---( variables )-------------------------------------------------------|
+
+    local action=""
+    local input=""
+    local url=""
+    local log_only=0
+
+    local state_home="${XDG_STATE_HOME:-$HOME/.local/state}"
+    local state_directory="${state_home}/termbin"
+    local history_file="${state_directory}/history"
+
+    # |---( usage )-----------------------------------------------------------|
+
+    usage() {
+        cat <<EOF
+===============================================================================
+[+] termbin - Send text to termbin.com from the terminal.
+===============================================================================
+
+Usage:
+  termbin <action> [message...] [options]
+
+Actions:
+  create              Create a termbin and output its URL.
+  log                 Create a termbin, output its URL, and save the URL
+                      to history.
+  history             Display previously logged termbin URLs.
+
+Options:
+  --log-only          With 'log', save the URL without displaying it.
+  -h, --help          Show this help.
+
+Examples:
+  termbin create "Hello, world!"
+  termbin log "Hello, world!"
+  termbin log "Hello, world!" --log-only
+
+  echo "Hello, world!" | termbin create
+  cat file.txt | termbin log
+  command 2>&1 | termbin log --log-only
+
+  termbin history
+
+History:
+  ${history_file}
+
+See https://github.com/alterEGO-Linux/ael-documentation/blob/main/components/ael-bin/INDEX.md
+-------------------------------------------------------------------------------
+EOF
+    }
+
+    # |---( actions )---------------------------------------------------------|
+
+    case "${1:-}" in
+
+        create|log|history)
+            action="$1"
+            shift
+            ;;
+
+        -h|--help)
+            usage
+            return 0
+            ;;
+
+        "")
+            usage
+            return 1
+            ;;
+
+        *)
+            message error "Unknown action: $1"
+            usage >&2
+            return 1
+            ;;
+    esac
+
+    # |---( history )---------------------------------------------------------|
+
+    if [[ "$action" == "history" ]]; then
+
+        if [[ ! -f "$history_file" ]]; then
+            message info "No termbin history."
+            return 0
+        fi
+
+        cat "$history_file"
+        return 0
+    fi
+
+    # |---( arguments )-------------------------------------------------------|
+
+    while (($#)); do
+        case "$1" in
+
+            --log-only)
+                log_only=1
+                shift
+                ;;
+
+            -h|--help)
+                usage
+                return 0
+                ;;
+
+            --)
+                shift
+                input="$*"
+                break
+                ;;
+
+            *)
+                if [[ -z "$input" ]]; then
+                    input="$1"
+                else
+                    input+=" $1"
+                fi
+
+                shift
+                ;;
+        esac
+    done
+
+    # |---( validation )------------------------------------------------------|
+
+    if (( log_only )) && [[ "$action" != "log" ]]; then
+        message error "--log-only can only be used with 'log'."
+        return 1
+    fi
+
+    # |---( input )-----------------------------------------------------------|
+
+    if [[ ! -t 0 ]]; then
+        input="$(</dev/stdin)"
+    fi
+
+    if [[ -z "$input" ]]; then
+        message error "No input provided."
+        return 1
+    fi
+
+    # |---( create )----------------------------------------------------------|
+
+    url="$(
+        printf '%s\n' "$input" |
+            nc termbin.com 9999 |
+            tr -d '\0'
+    )"
+
+    if [[ -z "$url" ]]; then
+        message error "No URL returned by termbin.com."
+        return 1
+    fi
+
+    # |---( log )-------------------------------------------------------------|
+
+    if [[ "$action" == "log" ]]; then
+
+        mkdir -p "$state_directory" || {
+            message error "Could not create state directory: $state_directory"
+            return 1
+        }
+
+        printf '%s %s\n' \
+            "$(date '+%Y-%m-%d %H:%M:%S')" \
+            "$url" >> "$history_file" || {
+                message error "Could not write to history: $history_file"
+                return 1
+            }
+
+        message info "URL logged to: $history_file" >&2
+    fi
+
+    # |---( output )----------------------------------------------------------|
+
+    if ! (( log_only )); then
+        printf '%s\n' "$url"
+    fi
+
+    return 0
+}
+
+
+# |---( exec )----------------------------------------------------------------|
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    termbin "$@"
+fi

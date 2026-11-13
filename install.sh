@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
-# =============================================================================
-# INFO
-# =============================================================================
-# [/ael-bin/install.sh]
-# 
-# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
-# Created     : 2026-09-28 13:14:51 UTC
-# Updated     : 2026-10-05 19:08:17 UTC
-# Description : AEL//bin install.
-# -----------------------------------------------------------------------------
+
+# install.sh - AEL//bin installer.
+# author     : Pascal Malouin (https://github.com/EGOUID0)
+# project    : https://github.com/alterEGO-Linux/ael-bin
+# created    : 2026-09-28
 
 set -euo pipefail
 
@@ -18,7 +13,7 @@ bin_home="${AEL_BIN:-${HOME}/.local/bin}"
 
 dev_mode=false
 
-# --( AEL BashLib )------------------------------------------------------------
+# |---( AEL BashLib )---------------------------------------------------------|
 
 if [[ -z "${AEL_BASHLIB:-}" ]]; then
     printf '%s\n' \
@@ -42,13 +37,13 @@ if [[ ! -d "$bashlib_dir" ]]; then
         "  $bashlib_dir" \
         '' \
         'Installation instructions:' \
-        '  https://github.com/alterEGO-Linux/ael-documentation/components/ael-bashlib/INDEX.md' \
+        '  https://github.com/alterEGO-Linux/ael-documentation/blob/main/components/ael-bashlib/INDEX.md' \
         '' >&2
 
     exit 1
 fi
 
-# ---( Usage )-----------------------------------------------------------------
+# |---( Usage )---------------------------------------------------------------|
 
 usage() {
     cat <<EOF
@@ -80,6 +75,7 @@ Components:
   --reverse-ssh     Install reverse-ssh
   --shell-info      Install shell-info
   --show-utc        Install show-utc
+  --termbin         Install termbin
   --virtual-boxes   Install virtual-boxes
   --whoisweb        Install whoisweb
   --word-frequency  Install word-frequency
@@ -101,7 +97,7 @@ Development installation:
 EOF
 }
 
-# ---( Common installation functions )-----------------------------------------
+# |---( Common installation functions )---------------------------------------|
 
 install_script() {
     local source="$1"
@@ -177,7 +173,7 @@ require_command() {
     fi
 }
 
-# ---( Component installers )--------------------------------------------------
+# |---( Component installers )------------------------------------------------|
 
 install_arch_pkg() {
     printf '\nInstalling arch-pkg...\n'
@@ -311,6 +307,12 @@ install_show_utc() {
     install_script "show-utc"
 }
 
+install_termbin() {
+    printf '\nInstalling termbin...\n'
+
+    install_script "termbin"
+}
+
 install_virtual_boxes() {
     printf '\nInstalling virtual-boxes...\n'
 
@@ -352,12 +354,13 @@ install_all() {
     install_reverse_ssh
     install_shell_info
     install_show_utc
+    install_termbin
     install_virtual_boxes
     install_whoisweb
     install_word_frequency
 }
 
-# ---( Arguments )-------------------------------------------------------------
+# |---( arguments )-----------------------------------------------------------|
 
 if [[ $# -eq 0 ]]; then
     usage
@@ -460,6 +463,10 @@ while [[ $# -gt 0 ]]; do
             components+=(show-utc)
             ;;
 
+        --termbin)
+            components+=(termbin)
+            ;;
+
         --virtual-boxes)
             components+=(virtual-boxes)
             ;;
@@ -491,7 +498,7 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-# ---( Validation )------------------------------------------------------------
+# |---( validation )----------------------------------------------------------|
 
 if [[ ${#components[@]} -eq 0 ]]; then
     printf 'Error: no component specified.\n\n' >&2
@@ -499,7 +506,7 @@ if [[ ${#components[@]} -eq 0 ]]; then
     exit 1
 fi
 
-# ---( Installation )----------------------------------------------------------
+# |---( Installation )--------------------------------------------------------|
 
 printf '%s\n' 'Installing AEL//Bin...'
 
@@ -602,6 +609,10 @@ for component in "${components[@]}"; do
 
         shell-info)
             install_shell_info
+            ;;
+
+        termbin)
+            install_termbin
             ;;
 
         virtual-boxes)

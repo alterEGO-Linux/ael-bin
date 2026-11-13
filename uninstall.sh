@@ -1,14 +1,8 @@
 #!/usr/bin/env bash
-# =============================================================================
-# INFO
-# =============================================================================
-# [/ael-bin/uninstall.sh]
-#
-# Author      : Pascal Malouin (https://github.com/alterEGO-Linux)
-# Created     : 2026-09-28 19:38:06 UTC
-# Updated     : 2026-10-05 19:14:21 UTC
-# Description : AEL//Bin uninstall.
-# -----------------------------------------------------------------------------
+# uninstall.sh - AEL//bin uninstaller.
+# author       : Pascal Malouin (https://github.com/EGOUID0)
+# project      : https://github.com/alterEGO-Linux/ael-bin
+# created      : 2026-09-28
 
 set -euo pipefail
 
@@ -16,7 +10,7 @@ bin_home="${AEL_BIN:-${HOME}/.local/bin}"
 
 dev_mode=false
 
-# ---( Usage )----------------------------------------------------------------|
+# |---( usage )---------------------------------------------------------------|
 
 usage() {
     cat <<EOF
@@ -48,6 +42,7 @@ Components:
   --reverse-ssh     Uninstall reverse-ssh
   --shell-info      Uninstall shell-info
   --show-utc        Uninstall show-utc
+  --termbin         Uninstall termbin
   --virtual-boxes   Uninstall virtual-boxes
   --whoisweb        Uninstall whoisweb
   --word-frequency  Uninstall word-frequency
@@ -70,7 +65,7 @@ EOF
 }
 
 
-# ---( Common uninstallation functions )--------------------------------------|
+# |---( Common uninstallation functions )-------------------------------------|
 
 remove_script() {
     local name="$1"
@@ -120,7 +115,7 @@ remove_directory_if_empty() {
 }
 
 
-# ---( Component uninstallers )-----------------------------------------------|
+# |---( Component uninstallers )----------------------------------------------|
 
 uninstall_arch_pkg() {
     printf '\nUninstalling arch-pkg...\n'
@@ -270,6 +265,11 @@ uninstall_show_utc() {
     remove_script "show-utc"
 }
 
+uninstall_termbin() {
+    printf '\nUninstalling termbin...\n'
+
+    remove_script "termbin"
+}
 
 uninstall_virtual_boxes() {
     printf '\nUninstalling virtual-boxes...\n'
@@ -315,13 +315,13 @@ uninstall_all() {
     uninstall_reverse_ssh
     uninstall_shell_info
     uninstall_show_utc
+    uninstall_termbin
     uninstall_virtual_boxes
     uninstall_whoisweb
     uninstall_word_frequency
 }
 
-
-# ---( Arguments )------------------------------------------------------------|
+# |---( arguments )-----------------------------------------------------------|
 
 if [[ $# -eq 0 ]]; then
     usage
@@ -424,6 +424,10 @@ while [[ $# -gt 0 ]]; do
             components+=(show-utc)
             ;;
 
+        --termbin)
+            components+=(termbin)
+            ;;
+
         --virtual-boxes)
             components+=(virtual-boxes)
             ;;
@@ -456,7 +460,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 
-# ---( Validation )-----------------------------------------------------------|
+# |---( validation )----------------------------------------------------------|
 
 if [[ ${#components[@]} -eq 0 ]]; then
     printf 'Error: no component specified.\n\n' >&2
@@ -465,7 +469,7 @@ if [[ ${#components[@]} -eq 0 ]]; then
 fi
 
 
-# ---( Uninstallation )-------------------------------------------------------|
+# |---( uninstallation )------------------------------------------------------|
 
 printf '%s\n' 'Uninstalling AEL//Bin...'
 
@@ -566,6 +570,10 @@ for component in "${components[@]}"; do
 
         show-utc)
             uninstall_show_utc
+            ;;
+
+        termbin)
+            uninstall_termbin
             ;;
 
         virtual-boxes)
