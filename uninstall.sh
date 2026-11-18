@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # uninstall.sh - AEL//bin uninstaller.
-# author       : Pascal Malouin (https://github.com/EGOUID0)
-# project      : https://github.com/alterEGO-Linux/ael-bin
-# created      : 2026-09-28
+# author     : Pascal Malouin (https://github.com/EGOUID0)
+# assited by : ChatGPT (OpenAI)
+# project    : https://github.com/alterEGO-Linux/ael-bin
+# created    : 2026-09-28
 
 set -euo pipefail
 
@@ -29,6 +30,7 @@ Components:
   --dicom-tag       Uninstall dicom-tag
   --directory-size  Uninstall directory-size
   --docker-info     Uninstall docker-info
+  --easyrdp         Uninstall easyrdp
   --elevate         Uninstall elevate
   --emojis          Uninstall emojis
   --extractor       Uninstall extractor
@@ -123,13 +125,11 @@ uninstall_arch_pkg() {
     remove_script "arch-pkg"
 }
 
-
 uninstall_busy() {
     printf '\nUninstalling busy...\n'
 
     remove_script "busy"
 }
-
 
 uninstall_cheat() {
     printf '\nUninstalling cheat...\n'
@@ -137,13 +137,11 @@ uninstall_cheat() {
     remove_script "cheat"
 }
 
-
 uninstall_deep_nmap() {
     printf '\nUninstalling deep-nmap...\n'
 
     remove_script "deep-nmap"
 }
-
 
 uninstall_deep_scan() {
     printf '\nUninstalling deep-scan...\n'
@@ -151,13 +149,11 @@ uninstall_deep_scan() {
     remove_script "deep-scan"
 }
 
-
 uninstall_delete() {
     printf '\nUninstalling delete...\n'
 
     remove_script "delete"
 }
-
 
 uninstall_dicom_tag() {
     printf '\nUninstalling dicom-tag...\n'
@@ -165,13 +161,11 @@ uninstall_dicom_tag() {
     remove_script "dicom-tag"
 }
 
-
 uninstall_directory_size() {
     printf '\nUninstalling directory-size...\n'
 
     remove_script "directory-size"
 }
-
 
 uninstall_docker_info() {
     printf '\nUninstalling docker-info...\n'
@@ -179,13 +173,17 @@ uninstall_docker_info() {
     remove_script "docker-info"
 }
 
+uninstall_easyrdp() {
+    printf '\nUninstalling easyrdp...\n'
+
+    remove_script "easyrdp"
+}
 
 uninstall_elevate() {
     printf '\nUninstalling elevate...\n'
 
     remove_script "elevate"
 }
-
 
 uninstall_emojis() {
     printf '\nUninstalling emojis...\n'
@@ -205,13 +203,11 @@ uninstall_network_switch() {
     remove_script "network-switch"
 }
 
-
 uninstall_pacman_reset() {
     printf '\nUninstalling pacman-reset...\n'
 
     remove_script "pacman-reset"
 }
-
 
 uninstall_ports() {
     printf '\nUninstalling ports...\n'
@@ -219,20 +215,17 @@ uninstall_ports() {
     remove_script "ports"
 }
 
-
 uninstall_processes() {
     printf '\nUninstalling processes...\n'
 
     remove_script "processes"
 }
 
-
 uninstall_ps_grep() {
     printf '\nUninstalling ps-grep...\n'
 
     remove_script "ps-grep"
 }
-
 
 uninstall_py_cleaner() {
     printf '\nUninstalling py-cleaner...\n'
@@ -302,6 +295,7 @@ uninstall_all() {
     uninstall_dicom_tag
     uninstall_directory_size
     uninstall_docker_info
+    uninstall_easyrdp
     uninstall_elevate
     uninstall_emojis
     uninstall_extractor
@@ -370,6 +364,10 @@ while [[ $# -gt 0 ]]; do
 
         --docker-info)
             components+=(docker-info)
+            ;;
+
+        --easyrdp)
+            components+=(easyrdp)
             ;;
 
         --elevate)
@@ -518,6 +516,10 @@ for component in "${components[@]}"; do
 
         docker-info)
             uninstall_docker_info
+            ;;
+
+        easyrdp)
+            uninstall_easyrdp
             ;;
 
         elevate)

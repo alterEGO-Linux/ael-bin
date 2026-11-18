@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-
 # install.sh - AEL//bin installer.
-# author     : Pascal Malouin (https://github.com/EGOUID0)
-# project    : https://github.com/alterEGO-Linux/ael-bin
-# created    : 2026-09-28
+# author      : Pascal Malouin (https://github.com/EGOUID0)
+# assisted by : ChatGPT (OpenAI)
+# project     : https://github.com/alterEGO-Linux/ael-bin
+# created     : 2026-09-28
 
 set -euo pipefail
 
@@ -62,6 +62,7 @@ Components:
   --dicom-tag       Install dicom-tag
   --directory-size  Install directory-size
   --docker-info     Install docker-info
+  --easyrdp         Install easyrdp
   --elevate         Install elevate
   --emojis          Install emojis
   --extractor       Install extractor
@@ -229,6 +230,12 @@ install_docker_info() {
     install_script "docker-info"
 }
 
+install_easyrdp() {
+    printf '\nInstalling easyrdp...\n'
+
+    install_script "easyrdp"
+}
+
 install_elevate() {
     printf '\nInstalling elevate...\n'
 
@@ -341,6 +348,7 @@ install_all() {
     install_dicom_tag
     install_directory_size
     install_docker_info
+    install_easyrdp
     install_elevate
     install_emojis
     install_extractor
@@ -409,6 +417,10 @@ while [[ $# -gt 0 ]]; do
 
         --docker-info)
             components+=(docker-info)
+            ;;
+
+        --easyrdp)
+            components+=(easyrdp)
             ;;
 
         --elevate)
@@ -561,6 +573,10 @@ for component in "${components[@]}"; do
 
         docker-info)
             install_docker_info
+            ;;
+
+        easyrdp)
+            install_easyrdp
             ;;
 
         elevate)
